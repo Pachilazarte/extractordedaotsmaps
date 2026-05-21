@@ -223,6 +223,16 @@ async function scrapeGoogleMaps(config, send, sessionId) {
     await page.setViewport({ width: 1280, height: 900 });
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const rt = req.resourceType();
+      if (rt === 'image' || rt === 'stylesheet' || rt === 'font' || rt === 'media') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
     for (let ti = 0; ti < totalTerms; ti++) {
       // Check if stopped
       if (sessions.get(sessionId)?.stopped) {
@@ -235,8 +245,8 @@ async function scrapeGoogleMaps(config, send, sessionId) {
              message: `[${ti+1}/${totalTerms}] Buscando: "${term}" en ${locationQuery}` });
 
       try {
-        await page.goto(buildUrl(term, locationQuery), { waitUntil: 'networkidle2', timeout: 60000 });
-        await sleep(2000);
+        await page.goto(buildUrl(term, locationQuery), { waitUntil: 'domcontentloaded', timeout: 90000 });
+        await sleep(3000); // Give JS time to render the results since we skipped networkidle
       } catch (e) {
         send({ type: 'warning', message: `No se pudo navegar: ${e.message}` });
         continue;
